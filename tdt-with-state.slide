@@ -5,23 +5,32 @@ Alexander Neumann
 alexander@bumpern.de
 https://github.com/fd0
 
-* Table-Driven Tests
+: Before we start, I'd like to ask a few questions:
+: Who is using Go tests, keep your hands up for the next questions
+: Who is using the standard library only (no testing frameworks/libraries)?
+: Who is using table-driven tests?
+: Who is using closures a lot in tests?
+: Who reads the standard library for inspiration?
 
 * A sample function
 
 .code simple/main.go /^// Capitalize/,/^}/
 
+: Small function, converts the first letter of the string to upper case
+: Let's have a look at the tests
+
 * Testing Capitalize
 
-.code simple/main_test.go /^func TestNormal/,/^}/
+.code simple/main_test.go /^func TestCapitalize/,/^}/
 
     $ go test -v -run TestNormal
     === RUN   TestNormal
     --- PASS: TestNormal (0.00s)
     PASS
 
-: But what about non-ASCII characters?
-: Like, for the string "Österreich"
+: All the tests pass, awesome!
+: What about strings which start with non-ASCII characters, like "Österreich"
+: Let's add a test case
 
 * Testing Capitalize with More Cases
 
@@ -33,20 +42,37 @@ https://github.com/fd0
         main_test.go:30: wrong result, want "Österreich", got "österreich"
     FAIL
 
+: Our small test function does not handle umlauts
+: Positive: we can directly see which test case failed
+: Downside: The code gets cluttered a bit
+: Every single test case needs at least three lines
+: We can't easily run a single test
+: Let's convert that to a table-based test
+
 * Testing with Tables
 
 .code simple/main_test.go /^func TestTables/,/^}/
 
-* 
     $ go test -v -run TestTables
     === RUN   TestTables
     --- FAIL: TestTables (0.00s)
         main_test.go:47: wrong result, want "Österreich", got "österreich"
     FAIL
 
+: We only need a slice, with the struct defined inline
+: We see the same test failure for "Österreich"
+: But we don't see which test failed any more, the second or the third one?
+: And we still can't see which test case failed
+: But there's a nice way out: sub-tests
+
 * Testing with Tables and Sub-Tests
 
 .code simple/main_test.go /^func TestSubtests/,/^}/
+
+: Same iteration over the test cases as before
+: But run each test in its own function
+: So we can use Fatalf instead of Errorf
+: Let's see how the failing test case looks now
 
 * 
     $ go test -v -run TestSubtests
@@ -61,8 +87,8 @@ https://github.com/fd0
             main_test.go:66: wrong result, want "Österreich", got "österreich"
     FAIL
 
-: easier to recognize which test failed
-: easy to re-run a single test
+: That's much better, we can now see the third test case is faulty
+: Without the verbose output the failing test case is even easier to spot
 
 * Spot Failing Test Cases
 
@@ -71,6 +97,9 @@ https://github.com/fd0
         --- FAIL: TestSubtests/#02 (0.00s)
             main_test.go:66: wrong result, want "Österreich", got "österreich"
     FAIL
+
+: We can also re-run just this test
+: This is important when test cases are complex and take a long time
 
 * Re-Run Single Sub-Test
 
@@ -82,9 +111,10 @@ https://github.com/fd0
             main_test.go:66: wrong result, want "Österreich", got "österreich"
     FAIL
 
-* Real Example: Testing a Simple HTTP API
+: Using sub-tests with tables is nice, so now let's have a look at a more realistic test scenario
+: We'll define an HTTP-based API and look at the tests
 
-* API
+* Real Example: Testing a Simple HTTP API
 
 Store, retrieve, and delete files of arbitrary types via HTTP:
 
@@ -96,6 +126,13 @@ Server can be run in two modes:
 
 - regular mode: delete files of any type
 - append-only mode: disallow deleting all files except type "lock"
+
+: We have a server which allows storing and retrieving files
+: A file has a named and a type, which is the directory it is stored in
+: The server can be operated in an append-only mode, where files can only be added
+: Except for lock files, those can be deleted even in append-only mode
+: I've built a toy implementation which stores all data in memory
+: It can be used with curl as follows
 
 * Example: Usage with cURL
 
@@ -118,6 +155,12 @@ Server can be run in two modes:
     $ curl -i http://localhost:1234/text/file.txt
     HTTP/1.1 404 Not Found
 
+: First, we start the server
+: Let's create a file called "file.txt" with the type/directory "text"
+: The content is set to "file content here"
+: We can retrieve the file again, delete it, and then the server just returns the status "not found"
+: This is a bit different in append-only mode
+
 * Example: Usage with cURL in Append-Only Mode
 
     $ ./rest --append-only
@@ -131,6 +174,10 @@ Server can be run in two modes:
     $ curl -i -X DELETE http://localhost:1234/text/file.txt
     HTTP/1.1 405 Method Not Allowed
 
+: Here, the same file is created, and it can be retrieved, but it cannot be deleted
+: The file has the type/directory "text"
+: As said before, lock files can be deleted even in append-only mode
+
 * Example: Usage with cURL in Append-Only Mode #2
 
     $ curl -d "file content here" http://localhost:1234/lock/foo
@@ -140,6 +187,9 @@ Server can be run in two modes:
 
     $ curl -i -X DELETE http://localhost:1234/lock/foo
     HTTP/1.1 200 OK
+
+: You can see that the file "foo" of type "lock" is created and deleted
+: Let's see how the toy implementation looks like
 
 * Implementation: Type Server
 
@@ -152,6 +202,10 @@ Server can be run in two modes:
 - The type `*Server` implements `http.Handler`
 - Files are stored in a map in memory
 
+: We have a type "Server" which is initialized by the NewServer() function
+: It implements the http.Handler interface, so it has the ServeHTTP() method
+: How would we test such a server?
+
 * Testing Server
 
 Strategy:
@@ -162,6 +216,11 @@ Strategy:
 - Try to access it again
 - Repeat with type `lock`
 - Repeat all in append-only mode
+
+: Here's the strategy
+: We'll always do sequences of HTTP requests to create, access, and delete files
+: And we'll retry that for the different server modes and file types
+: First, we need a few helpers to improve the readability of the test code
 
 * Helpers
 

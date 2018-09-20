@@ -2,7 +2,7 @@ package main
 
 import "testing"
 
-func TestNormal(t *testing.T) {
+func TestCapitalize(t *testing.T) {
 	res := Capitalize("foo")
 	if res != "Foo" {
 		t.Fatalf("wrong result, want %q, got %q", "Foo", res)
@@ -27,7 +27,7 @@ func TestFail(t *testing.T) {
 
 	res = Capitalize("österreich")
 	if res != "Österreich" {
-		t.Fatalf("wrong result, want %q, got %q", "Österreich", res)
+		t.Fatalf("wrong result, want %q, got %q", "Österreich", res) // HL
 	}
 }
 
@@ -37,8 +37,8 @@ func TestTables(t *testing.T) {
 		Want  string
 	}{
 		{"foo", "Foo"},
-		{"bar", "Bar"},
 		{"österreich", "Österreich"},
+		{"Österreich", "Österreich"},
 	}
 
 	for _, test := range tests {
@@ -55,15 +55,15 @@ func TestSubtests(t *testing.T) {
 		Want  string
 	}{
 		{"foo", "Foo"},
-		{"bar", "Bar"},
 		{"österreich", "Österreich"},
+		{"Österreich", "Österreich"},
 	}
 
 	for _, test := range tests {
-		t.Run("", func(st *testing.T) {
+		t.Run("", func(st *testing.T) { // HL
 			result := Capitalize(test.Input)
 			if result != test.Want {
-				st.Fatalf("wrong result, want %q, got %q", test.Want, result)
+				st.Fatalf("wrong result, want %q, got %q", test.Want, result) // HL
 			}
 		})
 	}
