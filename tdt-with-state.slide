@@ -1,0 +1,102 @@
+Table-Driven Tests With State
+26 Jun 2018
+
+Alexander Neumann
+alexander@bumpern.de
+https://github.com/fd0
+
+* Table-Driven Tests
+
+* A sample function
+
+.code simple/main.go /^// Capitalize/,/^}/
+
+* Testing Capitalize
+
+.code simple/main_test.go /^func TestNormal/,/^}/
+
+    $ go test -v -run TestNormal
+    === RUN   TestNormal
+    --- PASS: TestNormal (0.00s)
+    PASS
+
+: But what about non-ASCII characters?
+: Like, for the string "Österreich"
+
+* Testing Capitalize with More Cases
+
+.code simple/main_test.go /^func TestFail/,/^}/
+
+    $ go test -v -run TestFail
+    === RUN   TestFail
+    --- FAIL: TestFail (0.00s)
+        main_test.go:30: wrong result, want "Österreich", got "österreich"
+    FAIL
+
+* Testing with Tables
+
+.code simple/main_test.go /^func TestTables/,/^}/
+
+* 
+    $ go test -v -run TestTables
+    === RUN   TestTables
+    --- FAIL: TestTables (0.00s)
+        main_test.go:47: wrong result, want "Österreich", got "österreich"
+    FAIL
+
+* Testing with Tables and Sub-Tests
+
+.code simple/main_test.go /^func TestSubtests/,/^}/
+
+* 
+    $ go test -v -run TestSubtests
+    === RUN   TestSubtests
+    === RUN   TestSubtests/#00
+    === RUN   TestSubtests/#01
+    === RUN   TestSubtests/#02
+    --- FAIL: TestSubtests (0.00s)
+        --- PASS: TestSubtests/#00 (0.00s)
+        --- PASS: TestSubtests/#01 (0.00s)
+        --- FAIL: TestSubtests/#02 (0.00s)
+            main_test.go:66: wrong result, want "Österreich", got "österreich"
+    FAIL
+
+: easier to recognize which test failed
+: easy to re-run a single test
+
+* Spot Failing Test Cases
+
+    $ go test -run TestSubtests
+    --- FAIL: TestSubtests (0.00s)
+        --- FAIL: TestSubtests/#02 (0.00s)
+            main_test.go:66: wrong result, want "Österreich", got "österreich"
+    FAIL
+
+* Re-Run Single Sub-Test
+
+    $ go test -v -run TestSubtests/02
+    === RUN   TestSubtests
+    === RUN   TestSubtests/#02
+    --- FAIL: TestSubtests (0.00s)
+        --- FAIL: TestSubtests/#02 (0.00s)
+            main_test.go:66: wrong result, want "Österreich", got "österreich"
+    FAIL
+
+* Real Example: Testing a Simple REST API
+
+* API
+
+- GET /{type}/{name}
+- POST /{type}/{name}
+- DELETE /{type}/{name}
+
+* Helpers
+
+.code rest/main_test.go /^func DoRequest/,/^}/
+
+.code rest/main_test.go /^func NewRequest/,/^}/
+
+* Testing the REST API Server
+
+.code rest/main_test.go /^func TestCreateDeleteFile/,/^}/
+
