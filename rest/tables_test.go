@@ -3,14 +3,24 @@ package main
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
+func NewRequest(t *testing.T, path, method, body string) *http.Request {
+	req, err := http.NewRequest(method, path, strings.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return req
+}
+
+// START INTRO OMIT
 func TestTables(t *testing.T) {
 	type Requests []struct {
-		Request    *http.Request
-		StatusCode int
-		Body       string
+		Request *http.Request
+		Code    int
+		Body    string
 	}
 
 	var tests = []struct {
@@ -18,21 +28,33 @@ func TestTables(t *testing.T) {
 		Requests   Requests
 	}{
 		{
-			AppendOnly: false,
 			Requests: Requests{
 				{
-					Request:    NewRequest(t, "/foo/bar", "POST", "test content"),
-					StatusCode: http.StatusCreated,
+					Request: NewRequest(t, "/foo/bar", "POST", "test content"),
+					Code:    http.StatusCreated,
 				}, {
-					Request:    NewRequest(t, "/foo/bar", "GET", ""),
-					StatusCode: http.StatusOK,
-					Body:       "test content",
+					Request: NewRequest(t, "/foo/bar", "GET", ""),
+					Code:    http.StatusOK,
+					Body:    "test content",
+				},
+			},
+		},
+		// END INTRO OMIT
+		{
+			Requests: Requests{
+				{
+					Request: NewRequest(t, "/foo/bar", "POST", "test content"),
+					Code:    http.StatusCreated,
 				}, {
-					Request:    NewRequest(t, "/foo/bar", "DELETE", ""),
-					StatusCode: http.StatusOK,
+					Request: NewRequest(t, "/foo/bar", "GET", ""),
+					Code:    http.StatusOK,
+					Body:    "test content",
 				}, {
-					Request:    NewRequest(t, "/foo/bar", "GET", ""),
-					StatusCode: http.StatusNotFound,
+					Request: NewRequest(t, "/foo/bar", "DELETE", ""),
+					Code:    http.StatusOK,
+				}, {
+					Request: NewRequest(t, "/foo/bar", "GET", ""),
+					Code:    http.StatusNotFound,
 				},
 			},
 		},
@@ -40,19 +62,19 @@ func TestTables(t *testing.T) {
 			AppendOnly: true,
 			Requests: Requests{
 				{
-					Request:    NewRequest(t, "/foo/bar", "POST", "test content"),
-					StatusCode: http.StatusCreated,
+					Request: NewRequest(t, "/foo/bar", "POST", "test content"),
+					Code:    http.StatusCreated,
 				}, {
-					Request:    NewRequest(t, "/foo/bar", "GET", ""),
-					StatusCode: http.StatusOK,
-					Body:       "test content",
+					Request: NewRequest(t, "/foo/bar", "GET", ""),
+					Code:    http.StatusOK,
+					Body:    "test content",
 				}, {
-					Request:    NewRequest(t, "/foo/bar", "DELETE", ""),
-					StatusCode: http.StatusMethodNotAllowed,
+					Request: NewRequest(t, "/foo/bar", "DELETE", ""),
+					Code:    http.StatusMethodNotAllowed,
 				}, {
-					Request:    NewRequest(t, "/foo/bar", "GET", ""),
-					StatusCode: http.StatusOK,
-					Body:       "test content",
+					Request: NewRequest(t, "/foo/bar", "GET", ""),
+					Code:    http.StatusOK,
+					Body:    "test content",
 				},
 			},
 		},
@@ -60,41 +82,41 @@ func TestTables(t *testing.T) {
 			AppendOnly: true,
 			Requests: Requests{
 				{
-					Request:    NewRequest(t, "/lock/bar", "POST", "test content"),
-					StatusCode: http.StatusCreated,
+					Request: NewRequest(t, "/lock/bar", "POST", "test content"),
+					Code:    http.StatusCreated,
 				}, {
-					Request:    NewRequest(t, "/lock/bar", "GET", ""),
-					StatusCode: http.StatusOK,
-					Body:       "test content",
+					Request: NewRequest(t, "/lock/bar", "GET", ""),
+					Code:    http.StatusOK,
+					Body:    "test content",
 				}, {
-					Request:    NewRequest(t, "/lock/bar", "DELETE", ""),
-					StatusCode: http.StatusOK,
+					Request: NewRequest(t, "/lock/bar", "DELETE", ""),
+					Code:    http.StatusOK,
 				},
 			},
 		},
 	}
 
+	// START FUNC OMIT
 	for _, test := range tests {
 		t.Run("", func(st *testing.T) {
 			// use a new server for each sub-test
 			srv := NewServer(test.AppendOnly)
 
-			for _, request := range test.Requests {
-				// execute a single request
+			for _, r := range test.Requests {
 				res := httptest.NewRecorder()
-				srv.ServeHTTP(res, request.Request)
+				srv.ServeHTTP(res, r.Request)
 
-				// run all checks on the response
-				if request.StatusCode != res.Code {
+				if r.Code != res.Code {
 					st.Errorf("%v %v wrong response code, want %v, got %v",
-						request.Request.Method, request.Request.URL, request.StatusCode, res.Code)
+						r.Request.Method, r.Request.URL, r.Code, res.Code)
 				}
 
-				if request.Body != "" && res.Body.String() != request.Body {
+				if r.Body != "" && res.Body.String() != r.Body {
 					st.Errorf("%v %v wrong body returned for request: want %q, got %q",
-						request.Request.Method, request.Request.URL, request.Body, res.Body.String())
+						r.Request.Method, r.Request.URL, r.Body, res.Body.String())
 				}
 			}
 		})
 	}
+	// END FUNC OMIT
 }

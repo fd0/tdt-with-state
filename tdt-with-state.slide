@@ -82,21 +82,135 @@ https://github.com/fd0
             main_test.go:66: wrong result, want "Österreich", got "österreich"
     FAIL
 
-* Real Example: Testing a Simple REST API
+* Real Example: Testing a Simple HTTP API
 
 * API
+
+Store, retrieve, and delete files of arbitrary types via HTTP:
 
 - GET /{type}/{name}
 - POST /{type}/{name}
 - DELETE /{type}/{name}
 
+Server can be run in two modes:
+
+- regular mode: delete files of any type
+- append-only mode: disallow deleting all files except type "lock"
+
+* Example: Usage with cURL
+
+    $ go build ./rest
+    $ ./rest
+    listen on localhost:1234 (append-only mode: false)
+
+    $ curl -i -d "file content here" http://localhost:1234/text/file.txt
+    HTTP/1.1 201 Created
+
+    $ curl -i http://localhost:1234/text/file.txt
+    HTTP/1.1 200 OK
+    Content-Length: 17
+
+    file content here
+
+    $ curl -i -X DELETE http://localhost:1234/text/file.txt
+    HTTP/1.1 200 OK
+
+    $ curl -i http://localhost:1234/text/file.txt
+    HTTP/1.1 404 Not Found
+
+* Example: Usage with cURL in Append-Only Mode
+
+    $ ./rest --append-only
+    listen on localhost:1234 (append-only mode: false)
+
+    $ curl -d "file content here" http://localhost:1234/text/file.txt
+
+    $ curl http://localhost:1234/text/file.txt
+    file content here
+
+    $ curl -i -X DELETE http://localhost:1234/text/file.txt
+    HTTP/1.1 405 Method Not Allowed
+
+* Example: Usage with cURL in Append-Only Mode #2
+
+    $ curl -d "file content here" http://localhost:1234/lock/foo
+
+    $ curl http://localhost:1234/lock/foo
+    file content here
+
+    $ curl -i -X DELETE http://localhost:1234/lock/foo
+    HTTP/1.1 200 OK
+
+* Implementation: Type Server
+
+.code rest/main.go /func NewServer/,/^}/
+
+    func (s *Server) ServeHTTP(res http.ResponseWriter, req *http.Request) {
+        [...]
+    }
+
+- The type `*Server` implements `http.Handler`
+- Files are stored in a map in memory
+
+* Testing Server
+
+Strategy:
+
+- Create new file
+- Access it
+- Delete it
+- Try to access it again
+- Repeat with type `lock`
+- Repeat all in append-only mode
+
 * Helpers
 
-.code rest/main_test.go /^func DoRequest/,/^}/
+.code rest/regular_test.go /^func DoRequest/,/^}/
 
-.code rest/main_test.go /^func NewRequest/,/^}/
+.code rest/regular_test.go /^func CheckStatus/,/^}/
+
+.code rest/regular_test.go /^func CheckBody/,/^}/
 
 * Testing the REST API Server
 
-.code rest/main_test.go /^func TestCreateDeleteFile/,/^}/
+.code rest/regular_test.go /^func TestCreateDeleteFile/,/^}/
+
+* Testing Append-Only Mode
+
+.code rest/regular_test.go /^func TestAppendOnlyCreateDeleteFile/,/^}/
+
+* 
+
+Pros:
+
+- Easy to read
+- When test fails, the line number provides the exactly location
+
+Cons:
+
+- Much boilerplate code
+- Not easy to add a new test case
+- Need to find a name for the `TestXXX` function
+
+* New Helper
+
+.code rest/tables_test.go /^func NewRequest/,/^}/
+
+* Table-Driven Tests
+
+.code rest/tables_test.go /START INTRO/,/END INTRO/
+
+* 
+.code rest/tables_test.go /START FUNC/,/END FUNC/
+
+* 
+
+Pros:
+
+- Test cases easy to read
+
+Cons:
+
+- Test logic is more complicated
+- Adding things to test for will clutter the code
 

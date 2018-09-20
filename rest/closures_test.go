@@ -58,24 +58,24 @@ func TestClosures(t *testing.T) {
 			AppendOnly: false,
 			Requests: Requests{
 				{
-					Request: NewRequest(t, "/foo/bar", "POST", "test content"),
+					Request: NewRequest(t, "/text/file.txt", "POST", "test content"),
 					Checks: []CheckFunc{
 						WantStatus(http.StatusCreated),
 					},
 				}, {
-					Request: NewRequest(t, "/foo/bar", "GET", ""),
+					Request: NewRequest(t, "/text/file.txt", "GET", ""),
 					Checks: []CheckFunc{
 						WantStatus(http.StatusOK),
 						WantHeader("Content-Type", "application/octet-stream"),
 						WantBody("test content"),
 					},
 				}, {
-					Request: NewRequest(t, "/foo/bar", "DELETE", ""),
+					Request: NewRequest(t, "/text/file.txt", "DELETE", ""),
 					Checks: []CheckFunc{
 						WantStatus(http.StatusOK),
 					},
 				}, {
-					Request: NewRequest(t, "/foo/bar", "GET", ""),
+					Request: NewRequest(t, "/text/file.txt", "GET", ""),
 					Checks: []CheckFunc{
 						WantStatus(http.StatusNotFound),
 					},
@@ -174,8 +174,8 @@ func CreateRandomFile(t *testing.T, tpe string) TestSequence {
 func TestMoreClosures(t *testing.T) {
 	var tests = []TestSequence{
 		CreateRandomFile(t, "foo"),
-		CreateRandomFile(t, "data"),
-		CreateRandomFile(t, "locks"),
+		CreateRandomFile(t, "text"),
+		CreateRandomFile(t, "lock"),
 	}
 
 	for _, seq := range tests {

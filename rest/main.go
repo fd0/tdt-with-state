@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 )
@@ -24,7 +25,7 @@ type Server struct {
 
 func NewServer(appendOnly bool) *Server {
 	return &Server{
-		Data:       make(map[File][]byte),
+		Data:       make(map[File][]byte), // OMIT
 		AppendOnly: appendOnly,
 	}
 }
@@ -130,6 +131,13 @@ func (s *Server) Delete(file File, res http.ResponseWriter) (status int, err err
 }
 
 func main() {
-	s := NewServer(true)
-	http.ListenAndServe(":1234", s)
+	var appendOnly bool
+	if len(os.Args) > 1 && os.Args[1] == "--append-only" {
+		appendOnly = true
+	}
+
+	addr := "localhost:1234"
+	fmt.Printf("listen on %v (append-only mode: %v)\n", addr, appendOnly)
+
+	http.ListenAndServe(addr, NewServer(appendOnly))
 }

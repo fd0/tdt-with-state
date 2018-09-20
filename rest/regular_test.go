@@ -1,33 +1,21 @@
 package main
 
 import (
-	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 )
 
-func NewRequest(t *testing.T, path, method, body string) *http.Request {
-	var rd io.Reader
-
-	if body != "" {
-		rd = strings.NewReader(body)
-	}
-
-	req, err := http.NewRequest(method, path, rd)
+func DoRequest(t *testing.T, srv *Server, path, method, body string) *httptest.ResponseRecorder {
+	req, err := http.NewRequest(method, path, strings.NewReader(body))
 	if err != nil {
 		t.Fatal(err)
 	}
-	return req
-}
 
-func DoRequest(t *testing.T, srv http.Handler, path, method, body string) *httptest.ResponseRecorder {
-	req := NewRequest(t, path, method, body)
-	rec := httptest.NewRecorder()
-	srv.ServeHTTP(rec, req)
-	return rec
+	res := httptest.NewRecorder()
+	srv.ServeHTTP(res, req)
+	return res
 }
 
 func CheckStatus(t *testing.T, res *httptest.ResponseRecorder, code int) {
@@ -44,11 +32,10 @@ func CheckBody(t *testing.T, res *httptest.ResponseRecorder, body string) {
 
 func TestCreateDeleteFile(t *testing.T) {
 	srv := NewServer(false)
-	filepath := fmt.Sprintf("%s/%s", "foo", "bar")
+	filepath := "/text/file.txt"
 
 	res := DoRequest(t, srv, filepath, "POST", "test content")
 	CheckStatus(t, res, http.StatusCreated)
-	CheckBody(t, res, "")
 
 	res = DoRequest(t, srv, filepath, "GET", "")
 	CheckStatus(t, res, http.StatusOK)
@@ -56,9 +43,22 @@ func TestCreateDeleteFile(t *testing.T) {
 
 	res = DoRequest(t, srv, filepath, "DELETE", "")
 	CheckStatus(t, res, http.StatusOK)
-	CheckBody(t, res, "")
 
 	res = DoRequest(t, srv, filepath, "GET", "")
 	CheckStatus(t, res, http.StatusNotFound)
-	CheckBody(t, res, "")
+}
+
+func TestAppendOnlyCreateDeleteFile(t *testing.T) {
+	srv := NewServer(true) // HL
+	filepath := "/text/file.txt"
+
+	res := DoRequest(t, srv, filepath, "POST", "test content")
+	CheckStatus(t, res, http.StatusCreated)
+
+	res = DoRequest(t, srv, filepath, "GET", "")
+	CheckStatus(t, res, http.StatusOK)
+	CheckBody(t, res, "test content")
+
+	res = DoRequest(t, srv, filepath, "DELETE", "")
+	CheckStatus(t, res, http.StatusMethodNotAllowed) // HL
 }
