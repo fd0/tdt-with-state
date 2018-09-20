@@ -20,7 +20,8 @@ func DoRequest(t *testing.T, srv *Server, path, method, body string) *httptest.R
 
 func CheckStatus(t *testing.T, res *httptest.ResponseRecorder, code int) {
 	if res.Code != code {
-		t.Errorf("wrong response code, want %v, got %v", code, res.Code)
+		t.Errorf("wrong response code, want %v, got %v",
+			http.StatusText(code), http.StatusText(res.Code))
 	}
 }
 

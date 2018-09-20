@@ -16,14 +16,17 @@ type CheckFunc func(*testing.T, *httptest.ResponseRecorder)
 
 func WantStatus(code int) CheckFunc {
 	return func(t *testing.T, res *httptest.ResponseRecorder) {
+		t.Helper() // OMIT
 		if res.Code != code {
-			t.Errorf("wrong response code, want %v, got %v", code, res.Code)
+			t.Errorf("wrong response code, want %v, got %v",
+				http.StatusText(code), http.StatusText(res.Code))
 		}
 	}
 }
 
 func WantBody(body string) CheckFunc {
 	return func(t *testing.T, res *httptest.ResponseRecorder) {
+		t.Helper() // OMIT
 		if res.Body.String() != body {
 			t.Errorf("wrong body returned for request: want %q, got %q", body, res.Body.String())
 		}
@@ -38,12 +41,15 @@ func WantHeader(name, value string) CheckFunc {
 		}
 
 		if res.Header().Get(name) != value {
+			t.Helper() // OMIT
 			t.Errorf("HTTP response header %v has wrong value: want %q, got %q",
-				name, value, res.Header().Get(name))
+				name,
+				value, res.Header().Get(name))
 		}
 	}
 }
 
+// START INTRO OMIT
 func TestClosures(t *testing.T) {
 	type Requests []struct {
 		Request *http.Request
@@ -55,75 +61,145 @@ func TestClosures(t *testing.T) {
 		Requests   Requests
 	}{
 		{
-			AppendOnly: false,
 			Requests: Requests{
 				{
-					Request: NewRequest(t, "/text/file.txt", "POST", "test content"),
-					Checks: []CheckFunc{
+					NewRequest(t, "/text/file.txt", "POST", "test content"),
+					[]CheckFunc{
 						WantStatus(http.StatusCreated),
 					},
 				}, {
-					Request: NewRequest(t, "/text/file.txt", "GET", ""),
-					Checks: []CheckFunc{
+					NewRequest(t, "/text/file.txt", "GET", ""),
+					[]CheckFunc{
 						WantStatus(http.StatusOK),
-						WantHeader("Content-Type", "application/octet-stream"),
+						WantBody("test content"),
+					},
+				},
+			},
+		},
+		// END INTRO OMIT
+		// START REGULAR OMIT
+		{
+			Requests: Requests{
+				{
+					NewRequest(t, "/text/file.txt", "POST", "test content"),
+					[]CheckFunc{
+						WantStatus(http.StatusCreated),
+					},
+				}, {
+					NewRequest(t, "/text/file.txt", "GET", ""),
+					[]CheckFunc{
+						WantStatus(http.StatusOK),
 						WantBody("test content"),
 					},
 				}, {
-					Request: NewRequest(t, "/text/file.txt", "DELETE", ""),
-					Checks: []CheckFunc{
+					NewRequest(t, "/text/file.txt", "DELETE", ""),
+					[]CheckFunc{
 						WantStatus(http.StatusOK),
 					},
 				}, {
-					Request: NewRequest(t, "/text/file.txt", "GET", ""),
-					Checks: []CheckFunc{
+					NewRequest(t, "/text/file.txt", "GET", ""),
+					[]CheckFunc{
 						WantStatus(http.StatusNotFound),
 					},
 				},
 			},
 		},
+		// END OMIT
+		// START APPEND1 OMIT
 		{
-			AppendOnly: true,
+			AppendOnly: true, // HL
 			Requests: Requests{
 				{
-					Request: NewRequest(t, "/locks/bar", "POST", "test content"),
-					Checks: []CheckFunc{
+					NewRequest(t, "/text/file.txt", "POST", "test content"),
+					[]CheckFunc{
 						WantStatus(http.StatusCreated),
 					},
 				}, {
-					Request: NewRequest(t, "/locks/bar", "GET", ""),
-					Checks: []CheckFunc{
+					NewRequest(t, "/text/file.txt", "GET", ""),
+					[]CheckFunc{
 						WantStatus(http.StatusOK),
-						WantHeader("Content-Type", "application/octet-stream"),
 						WantBody("test content"),
 					},
 				}, {
-					Request: NewRequest(t, "/locks/bar", "DELETE", ""),
-					Checks: []CheckFunc{
-						WantStatus(http.StatusMethodNotAllowed),
+					NewRequest(t, "/text/file.txt", "DELETE", ""),
+					[]CheckFunc{
+						WantStatus(http.StatusMethodNotAllowed), // HL
+					},
+				}, {
+					NewRequest(t, "/text/file.txt", "GET", ""),
+					[]CheckFunc{
+						WantStatus(http.StatusOK),
+						WantBody("test content"),
 					},
 				},
 			},
 		},
+		// END OMIT
+		// START APPEND2 OMIT
+		{
+			AppendOnly: true,
+			Requests: Requests{
+				{
+					NewRequest(t, "/lock/bar", "POST", "test content"),
+					[]CheckFunc{
+						WantStatus(http.StatusCreated),
+					},
+				}, {
+					NewRequest(t, "/lock/bar", "GET", ""),
+					[]CheckFunc{
+						WantStatus(http.StatusOK),
+						WantBody("test content"),
+					},
+				}, {
+					NewRequest(t, "/lock/bar", "DELETE", ""),
+					[]CheckFunc{
+						WantStatus(http.StatusOK), // HL
+					},
+				},
+			},
+		},
+		// END OMIT
+		// START HEADER OMIT
+		{
+			Requests: Requests{
+				{
+					NewRequest(t, "/text/file.txt", "POST", "test content"),
+					[]CheckFunc{
+						WantStatus(http.StatusCreated),
+					},
+				}, {
+					NewRequest(t, "/text/file.txt", "GET", ""),
+					[]CheckFunc{
+						WantStatus(http.StatusOK),
+						WantHeader("Content-Type", "application/octet-stream"), // HL
+						WantBody("test content"),
+					},
+				},
+			},
+		},
+		// END OMIT
 	}
 
+	// START FUNC OMIT
 	for _, test := range tests {
 		t.Run("", func(st *testing.T) {
-			// use a new server for each sub-test
 			srv := NewServer(test.AppendOnly)
 
-			for _, request := range test.Requests {
+			for _, r := range test.Requests {
 				// execute a single request
 				res := httptest.NewRecorder()
-				srv.ServeHTTP(res, request.Request)
+				srv.ServeHTTP(res, r.Request)
 
 				// run all checks on the response
-				for _, fn := range request.Checks {
-					fn(st, res)
+				for _, fn := range r.Checks {
+					st.Run("", func(sst *testing.T) {
+						fn(sst, res)
+					})
 				}
 			}
 		})
 	}
+	// END FUNC OMIT
 }
 
 // RandomFileName returns a random string with 10 to 20 characters.
@@ -180,7 +256,6 @@ func TestMoreClosures(t *testing.T) {
 
 	for _, seq := range tests {
 		t.Run("", func(st *testing.T) {
-			// use a new server for each sub-test
 			srv := NewServer(false)
 
 			for _, request := range seq {
@@ -190,7 +265,9 @@ func TestMoreClosures(t *testing.T) {
 
 				// run all checks on the response
 				for _, fn := range request.Checks {
-					fn(st, res)
+					st.Run("", func(sst *testing.T) {
+						fn(st, res)
+					})
 				}
 			}
 		})

@@ -203,14 +203,82 @@ Cons:
 * 
 .code rest/tables_test.go /START FUNC/,/END FUNC/
 
+* Testing in Regular Mode
+
+.code rest/tables_test.go /START REGULAR/,/END/
+
+* Test for Append-Only Mode
+
+.code rest/tables_test.go /START APPEND1/,/END/
+
+* Test for Append-Only Mode
+
+.code rest/tables_test.go /START APPEND2/,/END/
+
+
 * 
 
 Pros:
 
 - Test cases easy to read
+- Adding new test case is easy
 
 Cons:
 
 - Test logic is more complicated
 - Adding things to test for will clutter the code
 
+* Idea
+
+- Read standard library
+- Discover patterns used there
+- Use closure and return a function to check
+
+* New Types and Helpers
+
+.code rest/closures_test.go /^type CheckFunc/,/$/
+
+.code rest/closures_test.go /^func WantStatus/,/^}/
+
+.code rest/closures_test.go /^func WantBody/,/^}/
+
+* 
+
+.code rest/closures_test.go /START INTRO/,/END INTRO/
+
+* 
+
+.code rest/closures_test.go /START FUNC/,/END FUNC/
+
+* Testing in Regular Mode
+
+.code rest/closures_test.go /START REGULAR/,/END/
+
+* Test for Append-Only Mode
+
+.code rest/closures_test.go /START APPEND1/,/END/
+
+* Test for Append-Only Mode
+
+.code rest/closures_test.go /START APPEND2/,/END/
+
+* 
+
+Pros:
+
+- Test cases easy to read
+- Adding new test case is easy
+- Test logic is simple
+- Adding things to test for is easy
+
+Cons:
+
+- Higher overall complexity
+
+* Testing for HTTP Header
+
+.code rest/closures_test.go /^func WantHeader/,/^}/
+
+* 
+
+.code rest/closures_test.go /START HEADER/,/END/

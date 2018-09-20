@@ -30,54 +30,59 @@ func TestTables(t *testing.T) {
 		{
 			Requests: Requests{
 				{
-					Request: NewRequest(t, "/foo/bar", "POST", "test content"),
+					Request: NewRequest(t, "/text/test.txt", "POST", "test content"),
 					Code:    http.StatusCreated,
 				}, {
-					Request: NewRequest(t, "/foo/bar", "GET", ""),
+					Request: NewRequest(t, "/text/test.txt", "GET", ""),
 					Code:    http.StatusOK,
 					Body:    "test content",
 				},
 			},
 		},
 		// END INTRO OMIT
+		// START REGULAR OMIT
 		{
 			Requests: Requests{
 				{
-					Request: NewRequest(t, "/foo/bar", "POST", "test content"),
+					Request: NewRequest(t, "/text/test.txt", "POST", "test content"),
 					Code:    http.StatusCreated,
 				}, {
-					Request: NewRequest(t, "/foo/bar", "GET", ""),
+					Request: NewRequest(t, "/text/test.txt", "GET", ""),
 					Code:    http.StatusOK,
 					Body:    "test content",
 				}, {
-					Request: NewRequest(t, "/foo/bar", "DELETE", ""),
+					Request: NewRequest(t, "/text/test.txt", "DELETE", ""),
 					Code:    http.StatusOK,
 				}, {
-					Request: NewRequest(t, "/foo/bar", "GET", ""),
+					Request: NewRequest(t, "/text/test.txt", "GET", ""),
 					Code:    http.StatusNotFound,
 				},
 			},
 		},
+		// END OMIT
+		// START APPEND1 OMIT
 		{
-			AppendOnly: true,
+			AppendOnly: true, // HL
 			Requests: Requests{
 				{
-					Request: NewRequest(t, "/foo/bar", "POST", "test content"),
+					Request: NewRequest(t, "/text/test.txt", "POST", "test content"),
 					Code:    http.StatusCreated,
 				}, {
-					Request: NewRequest(t, "/foo/bar", "GET", ""),
+					Request: NewRequest(t, "/text/test.txt", "GET", ""),
 					Code:    http.StatusOK,
 					Body:    "test content",
 				}, {
-					Request: NewRequest(t, "/foo/bar", "DELETE", ""),
-					Code:    http.StatusMethodNotAllowed,
+					Request: NewRequest(t, "/text/test.txt", "DELETE", ""),
+					Code:    http.StatusMethodNotAllowed, // HL
 				}, {
-					Request: NewRequest(t, "/foo/bar", "GET", ""),
+					Request: NewRequest(t, "/text/test.txt", "GET", ""),
 					Code:    http.StatusOK,
 					Body:    "test content",
 				},
 			},
 		},
+		// END OMIT
+		// START APPEND2 OMIT
 		{
 			AppendOnly: true,
 			Requests: Requests{
@@ -90,10 +95,11 @@ func TestTables(t *testing.T) {
 					Body:    "test content",
 				}, {
 					Request: NewRequest(t, "/lock/bar", "DELETE", ""),
-					Code:    http.StatusOK,
+					Code:    http.StatusOK, // HL
 				},
 			},
 		},
+		// END OMIT
 	}
 
 	// START FUNC OMIT
@@ -108,7 +114,8 @@ func TestTables(t *testing.T) {
 
 				if r.Code != res.Code {
 					st.Errorf("%v %v wrong response code, want %v, got %v",
-						r.Request.Method, r.Request.URL, r.Code, res.Code)
+						r.Request.Method, r.Request.URL,
+						http.StatusText(r.Code), http.StatusText(res.Code))
 				}
 
 				if r.Body != "" && res.Body.String() != r.Body {
